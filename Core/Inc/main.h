@@ -59,6 +59,12 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define LED_Pin GPIO_PIN_13
 #define LED_GPIO_Port GPIOC
+#define RFID_CS_Pin GPIO_PIN_4
+#define RFID_CS_GPIO_Port GPIOA
+#define RFID_RST_Pin GPIO_PIN_0
+#define RFID_RST_GPIO_Port GPIOB
+#define SD_CS_Pin GPIO_PIN_12
+#define SD_CS_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
