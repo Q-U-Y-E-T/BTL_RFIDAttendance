@@ -31,7 +31,11 @@ Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_exti.c \
 Core/Src/system_stm32f1xx.c \
 Core/Src/sysmem.c \
 Core/Src/syscalls.c \
-Core/Src/gpio.c
+Core/Src/gpio.c \
+Core/Src/spi.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_spi.c \
+Core/Src/i2c.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_i2c.c
 
 ######################################
 # Assembly sources
