@@ -97,6 +97,11 @@ C_INCLUDES = \
 # Shared application headers
 C_INCLUDES += -IApp/Inc
 
+# Module headers
+C_INCLUDES += -IModules/RC522
+C_INCLUDES += -IModules/LCD
+C_INCLUDES += -IModules/Storage
+
 ######################################
 # Compiler flags
 ######################################

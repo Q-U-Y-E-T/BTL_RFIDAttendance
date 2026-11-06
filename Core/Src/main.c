@@ -25,6 +25,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "app_types.h"
+#include "rfid.h"
+#include "lcd.h"
+#include "storage.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
