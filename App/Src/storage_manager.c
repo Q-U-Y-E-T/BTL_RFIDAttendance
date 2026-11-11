@@ -132,3 +132,11 @@ const Student_t *StorageManager_GetStudents(uint16_t *count)
 
     return lists[active_list];
 }
+void StorageManager_ReportIOError(void)
+{
+    mounted = 0;
+    list_ready = 0;
+    active_count = 0;
+    manager_status = STORAGE_IO_ERROR;
+    last_check = HAL_GetTick();
+}

@@ -50,9 +50,11 @@ Modules/Storage/storage.c
 ######################################
 C_SOURCES += \
 App/Src/storage_manager.c \
-App/Src/feedback.c
+App/Src/feedback.c \
+App/Src/attendance.c
 
-# Test files in Tests/ are not compiled in this build.
+# Tests/ sources are not compiled in this build.
+# The temporary card demo is currently in main.c.
 
 ######################################
 # Assembly sources

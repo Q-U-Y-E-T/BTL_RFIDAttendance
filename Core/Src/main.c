@@ -27,6 +27,10 @@
 /* USER CODE BEGIN Includes */
 #include "storage_manager.h"
 #include "feedback.h"
+#include "attendance.h"
+
+#include <stddef.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,12 +52,23 @@
 /* USER CODE BEGIN PV */
 
 /*
- * Demo:
- * 1: Da bat dau mau mot nhip, cho demo ba nhip.
- * 2: Da bat dau mau ba nhip, khong lap lai demo.
+ * demo_stage:
+ * 0: Cho danh sach san sang de test the hop le.
+ * 1: Da test the hop le, cho test the khong dang ky.
+ * 2: Da hoan thanh hai luot test.
  */
-static uint8_t feedback_demo_stage = 0;
-static uint32_t feedback_demo_tick = 0;
+static uint8_t demo_stage = 0;
+static uint32_t demo_tick = 0;
+
+static CardEvent_t demo_card;
+static DisplayEvent_t demo_display;
+
+/* Xem ket qua tung test bang debugger. */
+static volatile AttendanceResult_t demo_valid_result =
+    ATTENDANCE_NOT_READY;
+
+static volatile AttendanceResult_t demo_unknown_result =
+    ATTENDANCE_NOT_READY;
 
 /* USER CODE END PV */
 
@@ -61,11 +76,58 @@ static uint32_t feedback_demo_tick = 0;
 void SystemClock_Config(void);
 
 /* USER CODE BEGIN PFP */
-
+static uint8_t MakeUnknownCard(CardEvent_t *card);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/*
+ * Tao UID 4 byte khong co trong danh sach.
+ * Danh sach toi da 50 sinh vien, nen thu 256 gia tri
+ * byte dau se tim duoc mot UID chua dang ky.
+ */
+static uint8_t MakeUnknownCard(CardEvent_t *card)
+{
+  uint16_t count = 0;
+
+  const Student_t *students =
+      StorageManager_GetStudents(&count);
+
+  if (card == NULL || students == NULL)
+  {
+    return 0;
+  }
+
+  memset(card, 0, sizeof *card);
+  card->uid_len = 4;
+
+  for (unsigned int value = 0; value < 256U; ++value)
+  {
+    uint8_t found = 0;
+
+    card->uid[0] = (uint8_t)value;
+
+    for (uint16_t i = 0; i < count; ++i)
+    {
+      if (students[i].uid_len == card->uid_len &&
+          memcmp(students[i].uid,
+                 card->uid,
+                 card->uid_len) == 0)
+      {
+        found = 1;
+        break;
+      }
+    }
+
+    if (!found)
+    {
+      return 1;
+    }
+  }
+
+  return 0;
+}
 
 /* USER CODE END 0 */
 
@@ -99,23 +161,11 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
 
-  /* Tat ca hai dau ra truoc khi khoi tao SD. */
   Feedback_Init();
-
-  /* Khoi tao SD va doc DanhSach.csv neu co. */
   StorageManager_Init();
 
-  /*
-   * Demo mot nhip.
-   * Chi thu dau ra LED/coi, khong ghi log diem danh
-   * va khong dai dien cho ket qua kiem tra SD.
-   */
-  feedback_demo_tick = HAL_GetTick();
-
-  if (Feedback_Start(APP_CARD_ACCEPTED))
-  {
-    feedback_demo_stage = 1;
-  }
+  demo_stage = 0;
+  demo_tick = HAL_GetTick();
 
   /* USER CODE END 2 */
 
@@ -130,22 +180,75 @@ int main(void)
     Feedback_Process();
 
     /*
-     * Tam hoan thao tac SD khi dang phat mau bao,
-     * tranh cho SD lam keo dai nhip LED trong ban demo.
+     * Tam hoan thao tac SD trong luc phat mau bao,
+     * tranh thoi gian cho SD lam keo dai nhip LED.
      */
     if (!Feedback_IsBusy())
     {
       StorageManager_Process();
     }
 
-    /* Sau khoang 3 giay, demo ba nhip bao that bai. */
-    if (feedback_demo_stage == 1 &&
+    /*
+     * Test 1: gia lap the cua sinh vien dau tien.
+     * Ghi them mot dong vao history.csv.
+     */
+    if (demo_stage == 0 &&
         !Feedback_IsBusy() &&
-        (uint32_t)(HAL_GetTick() - feedback_demo_tick) >= 3000U)
+        StorageManager_IsReady() &&
+        (uint32_t)(HAL_GetTick() - demo_tick) >= 2000U)
     {
-      if (Feedback_Start(APP_CARD_UNKNOWN))
+      uint16_t count = 0;
+
+      const Student_t *students =
+          StorageManager_GetStudents(&count);
+
+      if (students != NULL && count > 0)
       {
-        feedback_demo_stage = 2;
+        memset(&demo_card, 0, sizeof demo_card);
+
+        demo_card.uid_len = students[0].uid_len;
+
+        memcpy(
+            demo_card.uid,
+            students[0].uid,
+            demo_card.uid_len
+        );
+
+        demo_card.uptime_ms = HAL_GetTick();
+
+        demo_valid_result = Attendance_ProcessCard(
+            &demo_card,
+            &demo_display
+        );
+
+        (void)Feedback_Start(demo_display.status);
+
+        demo_stage = 1;
+        demo_tick = HAL_GetTick();
+      }
+    }
+
+    /*
+     * Test 2: gia lap UID khong co trong danh sach.
+     * Du kien bao ba nhip, khong ghi them log.
+     */
+    if (demo_stage == 1 &&
+        !Feedback_IsBusy() &&
+        StorageManager_IsReady() &&
+        (uint32_t)(HAL_GetTick() - demo_tick) >= 3000U)
+    {
+      if (MakeUnknownCard(&demo_card))
+      {
+        demo_card.uptime_ms = HAL_GetTick();
+
+        demo_unknown_result = Attendance_ProcessCard(
+            &demo_card,
+            &demo_display
+        );
+
+        (void)Feedback_Start(demo_display.status);
+
+        demo_stage = 2;
       }
     }
 

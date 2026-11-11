@@ -16,5 +16,5 @@ Storage_Status_t StorageManager_GetStatus(void);
  * danh sach co the duoc thay khi cam lai the.
  */
 const Student_t *StorageManager_GetStudents(uint16_t *count);
-
+void StorageManager_ReportIOError(void);
 #endif
