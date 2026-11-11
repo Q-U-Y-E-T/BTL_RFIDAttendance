@@ -458,3 +458,68 @@ uint8_t SD_DiskProbe(void)
 
     return 1;
 }
+uint8_t SD_DiskTryReset(void)
+{
+    uint32_t saved_prescaler = hspi2.Init.BaudRatePrescaler;
+    uint8_t response = 0xFF;
+    uint8_t ok = 0;
+
+    sd_status = STA_NOINIT;
+    block_addressed = 0;
+    spi_error = 0;
+
+    /* Thu reset o toc do khoi tao cham. */
+    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+
+    if (HAL_SPI_Init(&hspi2) != HAL_OK) {
+        spi_error = 1;
+        goto finish;
+    }
+
+    HAL_GPIO_WritePin(
+        SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
+
+    HAL_Delay(10);
+
+    /* Clock khi CS High, MOSI High. */
+    for (unsigned int i = 0; i < 10U; ++i) {
+        (void)exchange(0xFF);
+    }
+
+    HAL_GPIO_WritePin(
+        SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);
+
+    (void)exchange(0xFF);
+
+    /*
+     * Gui CMD0 truc tiep mot lan.
+     * Khong lap thu trong 3 giay.
+     */
+    (void)exchange(0x40);
+    (void)exchange(0x00);
+    (void)exchange(0x00);
+    (void)exchange(0x00);
+    (void)exchange(0x00);
+    (void)exchange(0x95);
+
+    for (unsigned int i = 0; i < 10U; ++i) {
+        response = exchange(0xFF);
+
+        if (spi_error || !(response & 0x80U)) {
+            break;
+        }
+    }
+
+    ok = (!spi_error && response == 0x01);
+
+finish:
+    deselect_card();
+
+    hspi2.Init.BaudRatePrescaler = saved_prescaler;
+
+    if (HAL_SPI_Init(&hspi2) != HAL_OK || spi_error) {
+        ok = 0;
+    }
+
+    return ok;
+}

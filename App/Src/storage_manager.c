@@ -7,13 +7,7 @@
 
 #define SD_CHECK_INTERVAL_MS 1000U
 
-/*
- * Hai mang:
- * - mang dang dung
- * - mang tam de doc danh sach moi
- *
- * Chi doi mang dang dung khi doc va kiem tra thanh cong.
- */
+/* Doc vao mang tam, chi doi mang khi danh sach hop le. */
 static Student_t lists[2][STORAGE_MAX_STUDENTS];
 static uint8_t active_list;
 static uint16_t active_count;
@@ -30,9 +24,9 @@ void StorageManager_Init(void)
     active_count = 0;
     mounted = 0;
     list_ready = 0;
+
     manager_status = STORAGE_NOT_READY;
 
-    /* Cho phep kiem tra ngay lan dau. */
     last_check = HAL_GetTick() - SD_CHECK_INTERVAL_MS;
 
     StorageManager_Process();
@@ -45,22 +39,29 @@ void StorageManager_Process(void)
         return;
     }
 
-    /*
-     * Chi kiem tra khi khong co thao tac SD khac dang chay.
-     * Hien tai moi thao tac deu chay tu vong lap main.
-     */
+    /* Kiem tra mat ket noi khi the dang duoc su dung. */
     if (mounted && !SD_DiskProbe()) {
         mounted = 0;
         list_ready = 0;
         active_count = 0;
+
         manager_status = STORAGE_NOT_READY;
+
+        /* De lan kiem tra sau moi thu ket noi lai. */
+        goto finish;
     }
 
     if (!mounted) {
         /*
-         * Khoi tao lai the thuc su, khong chi tin trang thai
-         * va du lieu cache tu the truoc.
+         * Thu nhanh mot lan.
+         * Khong phan hoi thi bo qua khoi tao day du.
          */
+        if (!SD_DiskTryReset()) {
+            manager_status = STORAGE_NOT_READY;
+            goto finish;
+        }
+
+        /* The da phan hoi: tien hanh khoi tao day du. */
         if (disk_initialize(0) & STA_NOINIT) {
             manager_status = STORAGE_NOT_READY;
             goto finish;
@@ -87,7 +88,6 @@ void StorageManager_Process(void)
 
         if (manager_status == STORAGE_OK) {
             if (pending_count == 0) {
-                /* Ung dung diem danh can it nhat mot sinh vien. */
                 manager_status = STORAGE_FORMAT_ERROR;
             } else {
                 active_list = pending_list;
@@ -103,7 +103,6 @@ void StorageManager_Process(void)
     }
 
 finish:
-    /* Cho them mot khoang sau khi thao tac SD ket thuc. */
     last_check = HAL_GetTick();
 }
 
@@ -130,5 +129,6 @@ const Student_t *StorageManager_GetStudents(uint16_t *count)
     }
 
     *count = active_count;
+
     return lists[active_list];
 }
