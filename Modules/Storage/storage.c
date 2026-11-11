@@ -1,6 +1,6 @@
 #include "storage.h"
 #include "ff.h"
-
+#include <stdio.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -271,4 +271,151 @@ finish:
 
     return status;
 }
+static Storage_Status_t write_text(FIL *file, const char *text)
+{
+    UINT written = 0;
+    UINT length = (UINT)strlen(text);
 
+    FRESULT result = f_write(file, text, length, &written);
+
+    if (result != FR_OK) {
+        return map_error(result);
+    }
+
+    return written == length ? STORAGE_OK : STORAGE_IO_ERROR;
+}
+
+Storage_Status_t Storage_AppendAttendance(
+    const CardEvent_t *card,
+    const Student_t *student)
+{
+    static const char header[] = "uptime_ms,uid,student_id";
+    static const char hex[] = "0123456789ABCDEF";
+
+    FIL file;
+    char uid_text[21];
+    char row[64];
+    char existing_header[96];
+    Storage_Status_t status = STORAGE_OK;
+
+    if (card == NULL || student == NULL) {
+        return STORAGE_INVALID_ARGUMENT;
+    }
+
+    if ((card->uid_len != 4U &&
+         card->uid_len != 7U &&
+         card->uid_len != 10U) ||
+        student->uid_len != card->uid_len) {
+        return STORAGE_INVALID_ARGUMENT;
+    }
+
+    if (memcmp(card->uid, student->uid, card->uid_len) != 0) {
+        return STORAGE_INVALID_ARGUMENT;
+    }
+
+    /* Kiem tra chuoi ket thuc trong dung kich thuoc mang. */
+    if (memchr(student->student_id, '\0',
+               sizeof student->student_id) == NULL ||
+        !valid_text(student->student_id, 0)) {
+        return STORAGE_INVALID_ARGUMENT;
+    }
+
+    if (!storage_ready) {
+        return STORAGE_NOT_READY;
+    }
+
+    for (uint8_t i = 0; i < card->uid_len; ++i) {
+        uid_text[2U * i] = hex[card->uid[i] >> 4];
+        uid_text[2U * i + 1U] = hex[card->uid[i] & 0x0FU];
+    }
+    uid_text[2U * card->uid_len] = '\0';
+
+    int length = snprintf(
+        row, sizeof row,
+        "%lu,%s,%s\r\n",
+        (unsigned long)card->uptime_ms,
+        uid_text,
+        student->student_id
+    );
+
+    if (length < 0 || (size_t)length >= sizeof row) {
+        return STORAGE_INVALID_ARGUMENT;
+    }
+
+    /*
+     * OPEN_ALWAYS: mo file cu hoac tao file moi.
+     * Khong dung CREATE_ALWAYS vi se xoa lich su cu.
+     */
+    FRESULT result = f_open(
+        &file, "0:/history.csv",
+        FA_READ | FA_WRITE | FA_OPEN_ALWAYS
+    );
+
+    if (result != FR_OK) {
+        return map_error(result);
+    }
+
+    if (f_size(&file) == 0) {
+        status = write_text(&file, header);
+
+        if (status == STORAGE_OK) {
+            status = write_text(&file, "\r\n");
+        }
+    } else {
+        /* Kiem tra tieu de file cu truoc khi ghi them. */
+        int line_result = read_line(
+            &file, existing_header, sizeof existing_header);
+
+        if (line_result == -2) {
+            status = STORAGE_IO_ERROR;
+        } else if (line_result != 1 ||
+                   strcmp(existing_header, header) != 0) {
+            status = STORAGE_FORMAT_ERROR;
+        }
+
+        /*
+         * File cu phai ket thuc bang newline.
+         * Neu lan ghi truoc bi gian doan, bao loi de xu ly;
+         * khong noi dong moi vao mot dong dang do.
+         */
+        if (status == STORAGE_OK) {
+            result = f_lseek(&file, f_size(&file) - 1U);
+
+            if (result != FR_OK) {
+                status = map_error(result);
+            } else {
+                char last;
+                UINT received = 0;
+
+                result = f_read(&file, &last, 1, &received);
+
+                if (result != FR_OK) {
+                    status = map_error(result);
+                } else if (received != 1U || last != '\n') {
+                    status = STORAGE_FORMAT_ERROR;
+                }
+            }
+        }
+
+        if (status == STORAGE_OK) {
+            result = f_lseek(&file, f_size(&file));
+            status = map_error(result);
+        }
+    }
+
+    if (status == STORAGE_OK) {
+        status = write_text(&file, row);
+    }
+
+    if (status == STORAGE_OK) {
+        status = map_error(f_sync(&file));
+    }
+
+    result = f_close(&file);
+
+    if (status == STORAGE_OK) {
+        status = map_error(result);
+    }
+
+    return status;
+}

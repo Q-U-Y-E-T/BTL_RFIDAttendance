@@ -49,23 +49,24 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
 
-/* Ket qua chung cua bai test */
+/* Ket qua chung: 1 thanh cong, 0 that bai */
 static uint8_t sd_test_ok = 0;
 
-/* Danh sach sinh vien duoc doc tu SD vao RAM */
+/* Danh sach doc tu SD vao RAM */
 static Student_t students[STORAGE_MAX_STUDENTS];
 static uint16_t student_count = 0;
 
-/* Xem bang debugger khi can chan doan */
+/* Cac bien theo doi bang debugger */
 static volatile Storage_Status_t storage_result = STORAGE_NOT_READY;
 
 /*
- * Giai doan:
- * 1: Test doc/ghi SD
- * 2: Tao danh sach mau neu chua co
+ * storage_stage:
+ * 1: Test ghi/doc SDTEST.TXT
+ * 2: Tao DanhSach.csv mau neu chua co
  * 3: Khoi tao Storage
  * 4: Doc danh sach vao RAM
- * 5: Hoan thanh
+ * 6: Test ghi va doc lai history.csv
+ * 7: Hoan thanh tat ca bai test
  */
 static volatile uint32_t storage_stage = 0;
 
@@ -75,8 +76,16 @@ static volatile uint32_t storage_stage = 0;
 void SystemClock_Config(void);
 
 /* USER CODE BEGIN PFP */
+
 uint8_t Test_Storage_Run(void);
+
 uint8_t Test_Storage_CreateSampleList(void);
+
+uint8_t Test_Attendance_Run(
+    const Student_t *students,
+    uint16_t count
+);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -115,15 +124,15 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /*
-   * Buoc 1: Test ghi va doc lai SDTEST.TXT.
-   * File test nay bi ghi de moi lan khoi dong.
+   * 1. Test SD:
+   * Tao/ghi de SDTEST.TXT, doc lai va so sanh.
    */
   storage_stage = 1;
   sd_test_ok = Test_Storage_Run();
 
   /*
-   * Buoc 2: Tao DanhSach.csv mau neu chua ton tai.
-   * Khong ghi de danh sach da co.
+   * 2. Chuan bi danh sach mau.
+   * Giu nguyen file neu DanhSach.csv da ton tai.
    */
   if (sd_test_ok)
   {
@@ -131,15 +140,16 @@ int main(void)
     sd_test_ok = Test_Storage_CreateSampleList();
   }
 
-  /* Buoc 3: Khoi tao giao dien Storage chung */
+  /* 3. Khoi tao giao dien Storage chung */
   if (sd_test_ok)
   {
     storage_stage = 3;
     storage_result = Storage_Init();
+
     sd_test_ok = (storage_result == STORAGE_OK);
   }
 
-  /* Buoc 4: Doc va kiem tra danh sach sinh vien */
+  /* 4. Doc va kiem tra danh sach sinh vien */
   if (sd_test_ok)
   {
     storage_stage = 4;
@@ -154,9 +164,24 @@ int main(void)
                   student_count > 0U);
   }
 
+  /*
+   * 5. Gia lap mot luot quet cua sinh vien dau tien.
+   * Ghi them history.csv, doc lai va kiem tra dong vua ghi.
+   * Moi lan reset se them mot dong test.
+   */
   if (sd_test_ok)
   {
-    storage_stage = 5;
+    storage_stage = 6;
+
+    sd_test_ok = Test_Attendance_Run(
+        students,
+        student_count
+    );
+  }
+
+  if (sd_test_ok)
+  {
+    storage_stage = 7;
   }
 
   /* USER CODE END 2 */
@@ -168,13 +193,15 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 
     /*
-     * Nhanh: doc duoc danh sach hop le, co sinh vien.
-     * Cham: mot buoc test that bai hoac danh sach rong.
+     * Thanh cong: dao trang thai moi 100 ms.
+     * That bai: dao trang thai moi 1000 ms.
      */
     HAL_Delay(sd_test_ok ? 100U : 1000U);
+
   }
   /* USER CODE END 3 */
 }
@@ -225,11 +252,13 @@ void SystemClock_Config(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
+
   __disable_irq();
 
   while (1)
   {
   }
+
   /* USER CODE END Error_Handler_Debug */
 }
 
@@ -243,8 +272,10 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
+
   (void)file;
   (void)line;
+
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

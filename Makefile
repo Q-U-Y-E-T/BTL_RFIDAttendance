@@ -50,7 +50,8 @@ Modules/Storage/storage.c
 ######################################
 C_SOURCES += \
 Tests/test_storage.c \
-Tests/seed_students.c
+Tests/seed_students.c \
+Tests/test_attendance.c
 
 ######################################
 # Assembly sources
