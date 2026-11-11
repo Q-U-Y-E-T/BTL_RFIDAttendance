@@ -1,5 +1,6 @@
 /* RC522 driver adapted from the supplied demo for the shared STM32 HAL project. */
 #include "rfid.h"
+#include "rfid_delay.h"
 #include "main.h"
 #include "spi.h"
 #include <string.h>
@@ -133,7 +134,7 @@ static RFID_Status_t transceive(const uint8_t *tx, unsigned length,
             rfid_debug_step = "WAIT_IRQ_TIMEOUT";
             return RFID_ERROR;
         }
-        HAL_Delay(1U);
+        RFID_DelayMs(1U);
     }
 
     if (!write_register(REG_BIT_FRAMING, last_tx_bits)
@@ -180,13 +181,13 @@ RFID_Status_t RFID_Init(void)
     rfid_debug_step = "INIT_RESET";
     rfid_debug_version = 0U;
     HAL_GPIO_WritePin(RFID_RST_GPIO_Port, RFID_RST_Pin, GPIO_PIN_RESET);
-    HAL_Delay(2U);
+    RFID_DelayMs(2U);
     HAL_GPIO_WritePin(RFID_RST_GPIO_Port, RFID_RST_Pin, GPIO_PIN_SET);
-    HAL_Delay(50U);
+    RFID_DelayMs(50U);
     if (!write_register(REG_COMMAND, 0x0FU)) {
         return RFID_ERROR;
     }
-    HAL_Delay(50U);
+    RFID_DelayMs(50U);
 
     start = HAL_GetTick();
     for (;;) {
@@ -199,7 +200,7 @@ RFID_Status_t RFID_Init(void)
         if ((uint32_t)(HAL_GetTick() - start) >= 100U) {
             return RFID_ERROR;
         }
-        HAL_Delay(1U);
+        RFID_DelayMs(1U);
     }
     rfid_debug_step = "INIT_VERSION";
     if (!read_register(REG_VERSION, &value)) {

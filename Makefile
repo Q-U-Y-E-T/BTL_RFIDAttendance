@@ -106,6 +106,8 @@ C_INCLUDES += -IModules/Storage
 ######################################
 # Compiler flags
 ######################################
+include App/rfid_task_queue.mk
+
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) \
 -Wall -fdata-sections -ffunction-sections
 
