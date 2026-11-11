@@ -37,6 +37,9 @@ Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_spi.c \
 Core/Src/i2c.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_i2c.c
 
+# LCD 16x2 I2C (Modules/LCD)
+C_SOURCES += Modules/LCD/lcd.c
+
 ######################################
 # Assembly sources
 ######################################
