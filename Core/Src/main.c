@@ -26,6 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "storage_manager.h"
+#include "feedback.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +46,15 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-static uint32_t last_led_tick = 0;
+
+/*
+ * Demo:
+ * 1: Da bat dau mau mot nhip, cho demo ba nhip.
+ * 2: Da bat dau mau ba nhip, khong lap lai demo.
+ */
+static uint8_t feedback_demo_stage = 0;
+static uint32_t feedback_demo_tick = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -90,13 +99,23 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
 
-  /*
-   * Khoi tao quan ly SD.
-   * Neu co the va DanhSach.csv hop le:
-   * doc danh sach vao RAM.
-   */
+  /* Tat ca hai dau ra truoc khi khoi tao SD. */
+  Feedback_Init();
+
+  /* Khoi tao SD va doc DanhSach.csv neu co. */
   StorageManager_Init();
-  last_led_tick = HAL_GetTick();
+
+  /*
+   * Demo mot nhip.
+   * Chi thu dau ra LED/coi, khong ghi log diem danh
+   * va khong dai dien cho ket qua kiem tra SD.
+   */
+  feedback_demo_tick = HAL_GetTick();
+
+  if (Feedback_Start(APP_CARD_ACCEPTED))
+  {
+    feedback_demo_stage = 1;
+  }
 
   /* USER CODE END 2 */
 
@@ -108,30 +127,29 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    /*
-     * Kiem tra the dinh ky.
-     * Khi mat ket noi, danh sach duoc danh dau chua san sang.
-     * Khi ket noi lai, khoi tao va doc lai DanhSach.csv.
-     */
-    StorageManager_Process();
-
-    uint32_t now = HAL_GetTick();
+    Feedback_Process();
 
     /*
-     * Nhanh: SD va danh sach san sang.
-     * Cham: chua co the, loi SD hoac loi danh sach.
+     * Tam hoan thao tac SD khi dang phat mau bao,
+     * tranh cho SD lam keo dai nhip LED trong ban demo.
      */
-    uint32_t interval =
-        StorageManager_IsReady() ? 100U : 1000U;
-
-    if ((uint32_t)(now - last_led_tick) >= interval)
+    if (!Feedback_IsBusy())
     {
-      last_led_tick = now;
-      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+      StorageManager_Process();
     }
 
-    HAL_Delay(10);
+    /* Sau khoang 3 giay, demo ba nhip bao that bai. */
+    if (feedback_demo_stage == 1 &&
+        !Feedback_IsBusy() &&
+        (uint32_t)(HAL_GetTick() - feedback_demo_tick) >= 3000U)
+    {
+      if (Feedback_Start(APP_CARD_UNKNOWN))
+      {
+        feedback_demo_stage = 2;
+      }
+    }
 
+    HAL_Delay(5);
   }
   /* USER CODE END 3 */
 }

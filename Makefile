@@ -49,9 +49,10 @@ Modules/Storage/storage.c
 # Application sources
 ######################################
 C_SOURCES += \
-App/Src/storage_manager.c
+App/Src/storage_manager.c \
+App/Src/feedback.c
 
-# Tests are kept in Tests/ but are not built here.
+# Test files in Tests/ are not compiled in this build.
 
 ######################################
 # Assembly sources
