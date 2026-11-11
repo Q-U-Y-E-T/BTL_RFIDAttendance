@@ -48,15 +48,35 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+
+/* Ket qua chung cua bai test */
 static uint8_t sd_test_ok = 0;
+
+/* Danh sach sinh vien duoc doc tu SD vao RAM */
+static Student_t students[STORAGE_MAX_STUDENTS];
+static uint16_t student_count = 0;
+
+/* Xem bang debugger khi can chan doan */
+static volatile Storage_Status_t storage_result = STORAGE_NOT_READY;
+
+/*
+ * Giai doan:
+ * 1: Test doc/ghi SD
+ * 2: Tao danh sach mau neu chua co
+ * 3: Khoi tao Storage
+ * 4: Doc danh sach vao RAM
+ * 5: Hoan thanh
+ */
+static volatile uint32_t storage_stage = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 
 /* USER CODE BEGIN PFP */
-/* Implemented in Tests/test_storage.c */
 uint8_t Test_Storage_Run(void);
+uint8_t Test_Storage_CreateSampleList(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -93,11 +113,52 @@ int main(void)
   MX_SPI2_Init();
 
   /* USER CODE BEGIN 2 */
+
   /*
-   * Run the SD test once.
-   * The test overwrites SDTEST.TXT, then reads it back.
+   * Buoc 1: Test ghi va doc lai SDTEST.TXT.
+   * File test nay bi ghi de moi lan khoi dong.
    */
+  storage_stage = 1;
   sd_test_ok = Test_Storage_Run();
+
+  /*
+   * Buoc 2: Tao DanhSach.csv mau neu chua ton tai.
+   * Khong ghi de danh sach da co.
+   */
+  if (sd_test_ok)
+  {
+    storage_stage = 2;
+    sd_test_ok = Test_Storage_CreateSampleList();
+  }
+
+  /* Buoc 3: Khoi tao giao dien Storage chung */
+  if (sd_test_ok)
+  {
+    storage_stage = 3;
+    storage_result = Storage_Init();
+    sd_test_ok = (storage_result == STORAGE_OK);
+  }
+
+  /* Buoc 4: Doc va kiem tra danh sach sinh vien */
+  if (sd_test_ok)
+  {
+    storage_stage = 4;
+
+    storage_result = Storage_LoadStudents(
+        students,
+        STORAGE_MAX_STUDENTS,
+        &student_count
+    );
+
+    sd_test_ok = (storage_result == STORAGE_OK &&
+                  student_count > 0U);
+  }
+
+  if (sd_test_ok)
+  {
+    storage_stage = 5;
+  }
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -110,8 +171,8 @@ int main(void)
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 
     /*
-     * Success: toggle every 100 ms.
-     * Failure: toggle every 1000 ms.
+     * Nhanh: doc duoc danh sach hop le, co sinh vien.
+     * Cham: mot buoc test that bai hoac danh sach rong.
      */
     HAL_Delay(sd_test_ok ? 100U : 1000U);
   }

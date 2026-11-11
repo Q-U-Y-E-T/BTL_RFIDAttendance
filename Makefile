@@ -11,39 +11,46 @@ OPT = -Og
 BUILD_DIR = build
 
 ######################################
-# C sources
+# Core and HAL sources
 ######################################
 C_SOURCES = \
 Core/Src/main.c \
 Core/Src/stm32f1xx_it.c \
 Core/Src/stm32f1xx_hal_msp.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio_ex.c \
+Core/Src/system_stm32f1xx.c \
+Core/Src/sysmem.c \
+Core/Src/syscalls.c \
+Core/Src/gpio.c \
+Core/Src/spi.c \
+Core/Src/i2c.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio_ex.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_rcc.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_rcc_ex.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_dma.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_cortex.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pwr.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash_ex.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_exti.c \
-Core/Src/system_stm32f1xx.c \
-Core/Src/sysmem.c \
-Core/Src/syscalls.c \
-Core/Src/gpio.c \
-Core/Src/spi.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_spi.c \
-Core/Src/i2c.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_i2c.c
 
-# FatFs and SD driver
+######################################
+# FatFs and Storage sources
+######################################
 C_SOURCES += \
 Middlewares/Third_Party/FatFs/src/ff.c \
-Modules/Storage/sd_diskio.c
+Modules/Storage/sd_diskio.c \
+Modules/Storage/storage.c
 
-# Temporary SD test
-C_SOURCES += Tests/test_storage.c
+######################################
+# Temporary test sources
+######################################
+C_SOURCES += \
+Tests/test_storage.c \
+Tests/seed_students.c
 
 ######################################
 # Assembly sources
