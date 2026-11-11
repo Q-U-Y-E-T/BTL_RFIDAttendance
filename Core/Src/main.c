@@ -25,10 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "app_types.h"
-#include "rfid.h"
-#include "lcd.h"
-#include "storage.h"
+#include "storage_manager.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,43 +45,13 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
-/* Ket qua chung: 1 thanh cong, 0 that bai */
-static uint8_t sd_test_ok = 0;
-
-/* Danh sach doc tu SD vao RAM */
-static Student_t students[STORAGE_MAX_STUDENTS];
-static uint16_t student_count = 0;
-
-/* Cac bien theo doi bang debugger */
-static volatile Storage_Status_t storage_result = STORAGE_NOT_READY;
-
-/*
- * storage_stage:
- * 1: Test ghi/doc SDTEST.TXT
- * 2: Tao DanhSach.csv mau neu chua co
- * 3: Khoi tao Storage
- * 4: Doc danh sach vao RAM
- * 6: Test ghi va doc lai history.csv
- * 7: Hoan thanh tat ca bai test
- */
-static volatile uint32_t storage_stage = 0;
-
+static uint32_t last_led_tick = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 
 /* USER CODE BEGIN PFP */
-
-uint8_t Test_Storage_Run(void);
-
-uint8_t Test_Storage_CreateSampleList(void);
-
-uint8_t Test_Attendance_Run(
-    const Student_t *students,
-    uint16_t count
-);
 
 /* USER CODE END PFP */
 
@@ -124,65 +91,12 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /*
-   * 1. Test SD:
-   * Tao/ghi de SDTEST.TXT, doc lai va so sanh.
+   * Khoi tao quan ly SD.
+   * Neu co the va DanhSach.csv hop le:
+   * doc danh sach vao RAM.
    */
-  storage_stage = 1;
-  sd_test_ok = Test_Storage_Run();
-
-  /*
-   * 2. Chuan bi danh sach mau.
-   * Giu nguyen file neu DanhSach.csv da ton tai.
-   */
-  if (sd_test_ok)
-  {
-    storage_stage = 2;
-    sd_test_ok = Test_Storage_CreateSampleList();
-  }
-
-  /* 3. Khoi tao giao dien Storage chung */
-  if (sd_test_ok)
-  {
-    storage_stage = 3;
-    storage_result = Storage_Init();
-
-    sd_test_ok = (storage_result == STORAGE_OK);
-  }
-
-  /* 4. Doc va kiem tra danh sach sinh vien */
-  if (sd_test_ok)
-  {
-    storage_stage = 4;
-
-    storage_result = Storage_LoadStudents(
-        students,
-        STORAGE_MAX_STUDENTS,
-        &student_count
-    );
-
-    sd_test_ok = (storage_result == STORAGE_OK &&
-                  student_count > 0U);
-  }
-
-  /*
-   * 5. Gia lap mot luot quet cua sinh vien dau tien.
-   * Ghi them history.csv, doc lai va kiem tra dong vua ghi.
-   * Moi lan reset se them mot dong test.
-   */
-  if (sd_test_ok)
-  {
-    storage_stage = 6;
-
-    sd_test_ok = Test_Attendance_Run(
-        students,
-        student_count
-    );
-  }
-
-  if (sd_test_ok)
-  {
-    storage_stage = 7;
-  }
+  StorageManager_Init();
+  last_led_tick = HAL_GetTick();
 
   /* USER CODE END 2 */
 
@@ -194,13 +108,29 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+    /*
+     * Kiem tra the dinh ky.
+     * Khi mat ket noi, danh sach duoc danh dau chua san sang.
+     * Khi ket noi lai, khoi tao va doc lai DanhSach.csv.
+     */
+    StorageManager_Process();
+
+    uint32_t now = HAL_GetTick();
 
     /*
-     * Thanh cong: dao trang thai moi 100 ms.
-     * That bai: dao trang thai moi 1000 ms.
+     * Nhanh: SD va danh sach san sang.
+     * Cham: chua co the, loi SD hoac loi danh sach.
      */
-    HAL_Delay(sd_test_ok ? 100U : 1000U);
+    uint32_t interval =
+        StorageManager_IsReady() ? 100U : 1000U;
+
+    if ((uint32_t)(now - last_led_tick) >= interval)
+    {
+      last_led_tick = now;
+      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+    }
+
+    HAL_Delay(10);
 
   }
   /* USER CODE END 3 */

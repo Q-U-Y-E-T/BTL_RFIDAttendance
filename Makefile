@@ -46,12 +46,12 @@ Modules/Storage/sd_diskio.c \
 Modules/Storage/storage.c
 
 ######################################
-# Temporary test sources
+# Application sources
 ######################################
 C_SOURCES += \
-Tests/test_storage.c \
-Tests/seed_students.c \
-Tests/test_attendance.c
+App/Src/storage_manager.c
+
+# Tests are kept in Tests/ but are not built here.
 
 ######################################
 # Assembly sources

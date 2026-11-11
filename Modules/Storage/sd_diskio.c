@@ -1,7 +1,7 @@
 #include "main.h"
 #include "spi.h"
 #include "diskio.h"
-
+#include "sd_diskio.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -432,4 +432,29 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
     deselect_card();
 
     return spi_error ? RES_ERROR : result;
+}
+uint8_t SD_DiskProbe(void)
+{
+    uint8_t csd[16];
+    uint8_t ok = 0;
+
+    if (sd_status & STA_NOINIT) {
+        return 0;
+    }
+
+    spi_error = 0;
+
+    /* CMD9 doc truc tiep thanh ghi CSD, khong qua cache FatFs. */
+    if (send_command(9, 0) == 0) {
+        ok = (uint8_t)receive_block(csd, sizeof csd);
+    }
+
+    deselect_card();
+
+    if (spi_error || !ok) {
+        sd_status = STA_NOINIT;
+        return 0;
+    }
+
+    return 1;
 }
