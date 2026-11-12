@@ -156,6 +156,9 @@ $(error Khong dung DEMO=1 cung RFID_RTOS_TEST=1)
 endif
 endif
 
+# LCD 16x2 I2C
+C_SOURCES += Modules/LCD/lcd.c
+
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) \
 -Wall -fdata-sections -ffunction-sections
 
