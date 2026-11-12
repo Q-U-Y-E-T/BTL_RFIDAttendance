@@ -70,6 +70,13 @@ App/Src/feedback.c \
 App/Src/attendance.c
 
 ######################################
+# LCD 16x2 I2C (Tran Ngoc Son)
+######################################
+C_SOURCES += \
+Modules/LCD/lcd.c \
+Modules/LCD/lcd_display.c
+
+######################################
 # Optional demo
 ######################################
 ifeq ($(DEMO),1)
@@ -234,6 +241,7 @@ clean-all:
 # Desktop tests: no ARM toolchain or STM32 required.
 test-host:
 	python3 Tests/run_host_tests.py
+	python3 Tests/run_lcd_host_tests.py
 
 ######################################
 # Dependencies

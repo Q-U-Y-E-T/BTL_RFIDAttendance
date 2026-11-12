@@ -12,7 +12,6 @@ static uint8_t demo_stage;
 static uint32_t demo_tick;
 
 static CardEvent_t demo_card;
-static DisplayEvent_t demo_display;
 
 /* Xem bang debugger */
 volatile AttendanceResult_t demo_valid_result;
@@ -93,7 +92,7 @@ void AttendanceDemo_Process(void)
         if (demo_valid_result == ATTENDANCE_BUSY) {
             return;
         }
-        (void)App_TakeDisplayEvent(&demo_display);
+        /* Ket qua de vong lap chinh lay va dua len LCD (lcd_display). */
 
         demo_stage = 1;
         demo_tick = HAL_GetTick();
@@ -108,7 +107,7 @@ void AttendanceDemo_Process(void)
         if (demo_duplicate_result == ATTENDANCE_BUSY) {
             return;
         }
-        (void)App_TakeDisplayEvent(&demo_display);
+        /* Ket qua de vong lap chinh lay va dua len LCD (lcd_display). */
         demo_stage = 2;
         return;
     }
@@ -125,7 +124,7 @@ void AttendanceDemo_Process(void)
         if (demo_unknown_result == ATTENDANCE_BUSY) {
             return;
         }
-        (void)App_TakeDisplayEvent(&demo_display);
+        /* Ket qua de vong lap chinh lay va dua len LCD (lcd_display). */
 
         demo_stage = 3;
     }
