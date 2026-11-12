@@ -29,6 +29,7 @@ endif
 # Core and HAL sources
 ######################################
 C_SOURCES = \
+Modules/RC522/rfid.c \
 Core/Src/main.c \
 Core/Src/stm32f1xx_it.c \
 Core/Src/stm32f1xx_hal_msp.c \
@@ -146,6 +147,8 @@ endif
 ######################################
 # Compiler flags
 ######################################
+include App/rfid_task_queue.mk
+
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) \
 -Wall -fdata-sections -ffunction-sections
 
