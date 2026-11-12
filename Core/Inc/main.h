@@ -65,6 +65,8 @@ void Error_Handler(void);
 #define RFID_RST_GPIO_Port GPIOB
 #define SD_CS_Pin GPIO_PIN_12
 #define SD_CS_GPIO_Port GPIOB
+#define BUZZER_Pin GPIO_PIN_8
+#define BUZZER_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 
