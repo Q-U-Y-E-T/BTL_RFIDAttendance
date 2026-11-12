@@ -1,0 +1,144 @@
+diff --git a/Core/Src/main.c b/Core/Src/main.c
+index 2cd70a9..f313ad5 100644
+--- a/Core/Src/main.c
++++ b/Core/Src/main.c
+@@ -28,6 +28,7 @@
+ #include "rfid.h"
+ #include "lcd.h"
+ #include "storage.h"
++#include <stdio.h>
+ /* USER CODE END Includes */
+ 
+ /* Private typedef -----------------------------------------------------------*/
+@@ -48,7 +49,16 @@
+ /* Private variables ---------------------------------------------------------*/
+ 
+ /* USER CODE BEGIN PV */
+-
++static CardEvent_t test_card;
++static RFID_Status_t test_init_status;
++static RFID_Status_t test_status;
++
++extern const char * volatile rfid_debug_step;
++extern volatile uint32_t rfid_debug_hal_status;
++extern volatile uint32_t rfid_debug_irq;
++extern volatile uint32_t rfid_debug_error;
++extern volatile uint32_t rfid_debug_count;
++extern volatile uint32_t rfid_debug_version;
+ /* USER CODE END PV */
+ 
+ /* Private function prototypes -----------------------------------------------*/
+@@ -59,7 +69,55 @@ void SystemClock_Config(void);
+ 
+ /* Private user code ---------------------------------------------------------*/
+ /* USER CODE BEGIN 0 */
++/* Temporary USART1 TX-only diagnostics. PA9 -> USB-UART RX, common GND. */
++static void Test_UART_Init(void)
++{
++    GPIO_InitTypeDef pin = {0};
++    __HAL_RCC_GPIOA_CLK_ENABLE();
++    __HAL_RCC_USART1_CLK_ENABLE();
++    __HAL_RCC_USART1_FORCE_RESET();
++    __HAL_RCC_USART1_RELEASE_RESET();
++    pin.Pin = GPIO_PIN_9;
++    pin.Mode = GPIO_MODE_AF_PP;
++    pin.Speed = GPIO_SPEED_FREQ_HIGH;
++    HAL_GPIO_Init(GPIOA, &pin);
++    USART1->BRR = (HAL_RCC_GetPCLK2Freq() + 57600U) / 115200U;
++    USART1->CR1 = USART_CR1_TE | USART_CR1_UE;
++}
++
++static void Test_UART_Write(const char *text)
++{
++    uint32_t start = HAL_GetTick();
++    while (*text != '\0') {
++        while ((USART1->SR & USART_SR_TXE) == 0U) {
++            if ((uint32_t)(HAL_GetTick() - start) >= 100U) {
++                return;
++            }
++        }
++        USART1->DR = (uint8_t)*text++;
++    }
++}
+ 
++static void Test_PrintStatus(void)
++{
++    static const char hex[] = "0123456789ABCDEF";
++    char uid[21] = "-";
++    char line[192];
++    if (test_status == RFID_OK) {
++        for (unsigned i = 0; i < test_card.uid_len; ++i) {
++            uid[2U * i] = hex[test_card.uid[i] >> 4];
++            uid[2U * i + 1U] = hex[test_card.uid[i] & 15U];
++        }
++        uid[2U * test_card.uid_len] = '\0';
++    }
++    (void)snprintf(line, sizeof(line),
++        "READ=%u STEP=%s VER=%02lX IRQ=%02lX ERR=%02lX N=%lu SPI=%lu SPIERR=%08lX UID=%s\r\n",
++        (unsigned)test_status, rfid_debug_step,
++        (unsigned long)rfid_debug_version, (unsigned long)rfid_debug_irq,
++        (unsigned long)rfid_debug_error, (unsigned long)rfid_debug_count,
++        (unsigned long)rfid_debug_hal_status, (unsigned long)hspi1.ErrorCode, uid);
++    Test_UART_Write(line);
++}
+ /* USER CODE END 0 */
+ 
+ /**
+@@ -95,8 +153,19 @@ int main(void)
+   MX_I2C1_Init();
+   MX_SPI2_Init();
+   /* USER CODE BEGIN 2 */
+-
+-  /* USER CODE END 2 */
++  Test_UART_Init();
++  Test_UART_Write("\r\nRFID_HAL_DIAG_V2 115200-8N1\r\n");
++  test_init_status = RFID_Init();
++  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
++  {
++      char line[112];
++      (void)snprintf(line, sizeof(line),
++          "INIT=%u STEP=%s VER=%02lX PCLK2=%lu\r\n",
++          (unsigned)test_init_status, rfid_debug_step,
++          (unsigned long)rfid_debug_version, (unsigned long)HAL_RCC_GetPCLK2Freq());
++      Test_UART_Write(line);
++  }
++/* USER CODE END 2 */
+ 
+   /* Infinite loop */
+   /* USER CODE BEGIN WHILE */
+@@ -105,8 +174,33 @@ int main(void)
+     /* USER CODE END WHILE */
+ 
+     /* USER CODE BEGIN 3 */
+-    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+-    HAL_Delay(500);
++    if (test_init_status != RFID_OK) {
++        Test_UART_Write("INIT_ERROR - inspect INIT line, then reset after correcting the issue.\r\n");
++        HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
++        HAL_Delay(1000U);
++    } else {
++        static uint32_t last_log;
++        static RFID_Status_t previous_status = RFID_ERROR;
++        test_status = RFID_ReadCard(&test_card);
++        if (test_status != previous_status
++            || (uint32_t)(HAL_GetTick() - last_log) >= 1000U) {
++            Test_PrintStatus();
++            previous_status = test_status;
++            last_log = HAL_GetTick();
++        }
++        if (test_status == RFID_ERROR) {
++            HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
++            HAL_Delay(100U);
++        } else {
++            uint8_t correct_card =
++                test_status == RFID_OK && test_card.uid_len == 4U &&
++                test_card.uid[0] == 0xB3U && test_card.uid[1] == 0x69U &&
++                test_card.uid[2] == 0xA2U && test_card.uid[3] == 0xA7U;
++            HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin,
++                              correct_card ? GPIO_PIN_RESET : GPIO_PIN_SET);
++            HAL_Delay(50U);
++        }
++    }
+   }
+   /* USER CODE END 3 */
+ }

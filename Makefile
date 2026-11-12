@@ -146,6 +146,16 @@ endif
 ######################################
 # Compiler flags
 ######################################
+# RC522 driver and optional standalone FreeRTOS test
+C_SOURCES += Modules/RC522/rfid.c
+include App/rfid_task_queue.mk
+
+ifeq ($(RFID_RTOS_TEST),1)
+ifneq ($(DEMO),0)
+$(error Khong dung DEMO=1 cung RFID_RTOS_TEST=1)
+endif
+endif
+
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) \
 -Wall -fdata-sections -ffunction-sections
 

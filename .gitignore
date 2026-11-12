@@ -1,6 +1,6 @@
-build/
+/build/
 /build-demo/
 /build-host/
+/build_rfid_rtos/
 __pycache__/
-
 /RFIDAttendance_Quyet.tar.gz
