@@ -1,12 +1,14 @@
 # Input task and queue test profile. Included before the main Makefile flags.
 RFID_RTOS_TEST ?= 0
 RFID_QUEUE_TEST_PAUSE_MS ?= 0
+RFID_CARD_COOLDOWN_MS ?= 120000
 
 ifeq ($(RFID_RTOS_TEST),1)
 BUILD_DIR := build_rfid_rtos
 FREERTOS_SOURCE := Middlewares/Third_Party/FreeRTOS/Source
 C_DEFS += -DRFID_USE_FREERTOS
 C_DEFS += -DRFID_QUEUE_TEST_PAUSE_MS=$(RFID_QUEUE_TEST_PAUSE_MS)
+C_DEFS += -DRFID_CARD_COOLDOWN_MS=$(RFID_CARD_COOLDOWN_MS)
 C_INCLUDES += -ITests
 C_INCLUDES += -I$(FREERTOS_SOURCE)/include
 C_INCLUDES += -I$(FREERTOS_SOURCE)/portable/GCC/ARM_CM3

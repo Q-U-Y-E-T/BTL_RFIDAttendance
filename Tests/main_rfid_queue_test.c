@@ -76,7 +76,7 @@ static void Task_Queue_TestReceiver(void *argument)
     CardEvent_t card;
     uint32_t received = 0U;
     TickType_t last_heartbeat = xTaskGetTickCount();
-    char line[192];
+    char line[256];
     (void)argument;
 
 #if RFID_QUEUE_TEST_PAUSE_MS > 0
@@ -105,13 +105,15 @@ static void Task_Queue_TestReceiver(void *argument)
         }
         if ((TickType_t)(xTaskGetTickCount() - last_heartbeat) >= pdMS_TO_TICKS(1000U)) {
             (void)snprintf(line, sizeof(line),
-                "ALIVE init=%u init_errors=%lu read_errors=%lu sent=%lu rx=%lu waits=%lu heap=%lu rfid_stack=%lu rx_stack=%lu\r\n",
+                "ALIVE init=%u init_errors=%lu read_errors=%lu sent=%lu rx=%lu waits=%lu suppressed=%lu cooldown_full=%lu heap=%lu rfid_stack=%lu rx_stack=%lu\r\n",
                 (unsigned)g_rfid_task_stats.init_status,
                 (unsigned long)g_rfid_task_stats.init_errors,
                 (unsigned long)g_rfid_task_stats.read_errors,
                 (unsigned long)g_rfid_task_stats.cards_queued,
                 (unsigned long)received,
                 (unsigned long)g_rfid_task_stats.queue_waits,
+                (unsigned long)g_rfid_task_stats.cards_suppressed,
+                (unsigned long)g_rfid_task_stats.cooldown_full,
                 (unsigned long)xPortGetFreeHeapSize(),
                 (unsigned long)g_rfid_task_stats.stack_free_words,
                 (unsigned long)uxTaskGetStackHighWaterMark(NULL));
@@ -162,6 +164,12 @@ int main(void)
     MX_SPI2_Init();
     Test_UART_Init();
     Test_UART_Write("\r\nRFID_TASK_QUEUE_TEST V1 115200-8N1\r\n");
+    {
+        char line[72];
+        (void)snprintf(line, sizeof(line), "PER_UID_COOLDOWN_MS=%lu\r\n",
+                       (unsigned long)RFID_CARD_COOLDOWN_MS);
+        Test_UART_Write(line);
+    }
     configASSERT(App_Queues_Init() == pdPASS);
     configASSERT(RFID_Task_Start() == pdPASS);
     configASSERT(xTaskCreate(Task_Queue_TestReceiver, "Queue_Test", 512U,
