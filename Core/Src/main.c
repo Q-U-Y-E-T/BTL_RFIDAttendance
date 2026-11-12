@@ -26,6 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "app.h"
+#include "lcd_display.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -90,6 +91,7 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   App_Init();
+  Display_Init(HAL_GetTick());   /* LCD: hien MOI QUET THE */
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -100,6 +102,15 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     App_Process();
+    {
+      /* Lay ket qua cua App (moi lan quet) dua len LCD. Phai lay de App
+       * nhan luot tiep theo, ke ca khi LCD dang loi. */
+      DisplayEvent_t display;
+      if (App_TakeDisplayEvent(&display)) {
+        Display_Show(&display, HAL_GetTick());
+      }
+      Display_Process(HAL_GetTick());
+    }
     HAL_Delay(5);
   }
   /* USER CODE END 3 */
