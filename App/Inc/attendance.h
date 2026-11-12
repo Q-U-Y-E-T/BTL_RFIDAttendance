@@ -8,7 +8,9 @@ typedef enum {
     ATTENDANCE_UNKNOWN,
     ATTENDANCE_NOT_READY,
     ATTENDANCE_STORAGE_FAILED,
-    ATTENDANCE_INVALID_ARGUMENT
+    ATTENDANCE_INVALID_ARGUMENT,
+    ATTENDANCE_DUPLICATE,
+    ATTENDANCE_BUSY
 } AttendanceResult_t;
 
 /*
@@ -17,11 +19,18 @@ typedef enum {
  * Khong giu lai con tro sau khi tra ve.
  *
  * Chi goi tu cung luong xu ly voi StorageManager hien tai.
- * Chua xu ly chong quet lap trong ham nay.
+ * Cung UID bi chan cho den khi bao vang the lien tuc du thoi gian.
+ * Ca luot ghi loi cung duoc chan lap: khong tu dong ghi lai.
  */
 AttendanceResult_t Attendance_ProcessCard(
     const CardEvent_t *card,
     DisplayEvent_t *display
 );
+
+void Attendance_Init(void);
+/* Bao RFID_NO_CARD moi lan poll (khoang 100 ms hoac nhanh hon). */
+void Attendance_NotifyNoCard(uint32_t now_ms);
+/* Loi dau doc khong duoc coi la da rut the. */
+void Attendance_NotifyReaderError(void);
 
 #endif

@@ -106,6 +106,7 @@ static int hex_value(char ch)
 /* Chi nhan ASCII in duoc; ten cho phep dau cach. */
 static int valid_text(const char *text, int allow_space)
 {
+    int has_nonspace = 0;
     if (*text == '\0') {
         return 0;
     }
@@ -114,12 +115,15 @@ static int valid_text(const char *text, int allow_space)
         unsigned char ch = (unsigned char)*text;
 
         if (ch < (allow_space ? 32U : 33U) ||
-            ch > 126U || ch == ',') {
+            ch > 126U || ch == ',' || ch == '"') {
             return 0;
+        }
+        if (ch != ' ') {
+            has_nonspace = 1;
         }
     }
 
-    return 1;
+    return has_nonspace;
 }
 
 static int parse_student(char *line, Student_t *student)

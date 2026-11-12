@@ -8,7 +8,22 @@ TARGET = RFIDAttendance
 ######################################
 DEBUG = 1
 OPT = -Og
+
+# 0: normal build
+# 1: fake-card demo
+DEMO ?= 0
+
+ifneq ($(DEMO),0)
+ifneq ($(DEMO),1)
+$(error DEMO must be 0 or 1)
+endif
+endif
+
+ifeq ($(DEMO),1)
+BUILD_DIR = build-demo
+else
 BUILD_DIR = build
+endif
 
 ######################################
 # Core and HAL sources
@@ -49,12 +64,17 @@ Modules/Storage/storage.c
 # Application sources
 ######################################
 C_SOURCES += \
+App/Src/app.c \
 App/Src/storage_manager.c \
 App/Src/feedback.c \
 App/Src/attendance.c
 
-# Tests/ sources are not compiled in this build.
-# The temporary card demo is currently in main.c.
+######################################
+# Optional demo
+######################################
+ifeq ($(DEMO),1)
+C_SOURCES += Tests/attendance_demo.c
+endif
 
 ######################################
 # Assembly sources
@@ -99,7 +119,8 @@ AS_DEFS =
 
 C_DEFS = \
 -DUSE_HAL_DRIVER \
--DSTM32F103xB
+-DSTM32F103xB \
+-DAPP_ENABLE_DEMO=$(DEMO)
 
 ######################################
 # Header paths
@@ -118,6 +139,10 @@ C_INCLUDES = \
 -IModules/Storage \
 -IMiddlewares/Third_Party/FatFs/src
 
+ifeq ($(DEMO),1)
+C_INCLUDES += -ITests
+endif
+
 ######################################
 # Compiler flags
 ######################################
@@ -127,7 +152,7 @@ ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) \
 CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
 -Wall -fdata-sections -ffunction-sections
 
-ifeq ($(DEBUG), 1)
+ifeq ($(DEBUG),1)
 CFLAGS += -g -gdwarf-2
 ASFLAGS += -g -gdwarf-2
 endif
@@ -151,7 +176,7 @@ LDFLAGS = $(MCU) -specs=nano.specs \
 # Default target
 ######################################
 .DEFAULT_GOAL := all
-.PHONY: all clean
+.PHONY: all clean clean-all test-host
 
 all: $(BUILD_DIR)/$(TARGET).elf \
      $(BUILD_DIR)/$(TARGET).hex \
@@ -202,6 +227,13 @@ $(BUILD_DIR):
 ######################################
 clean:
 	$(RM) -r $(BUILD_DIR)
+
+clean-all:
+	$(RM) -r build build-demo build-host
+
+# Desktop tests: no ARM toolchain or STM32 required.
+test-host:
+	python3 Tests/run_host_tests.py
 
 ######################################
 # Dependencies
