@@ -4,6 +4,18 @@
 #include "sd_diskio.h"
 #include <stdint.h>
 #include <string.h>
+#include "FreeRTOS.h"
+#include "task.h"
+
+static void sd_delay(uint32_t ms)
+{
+    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
+        TickType_t ticks = pdMS_TO_TICKS(ms);
+        vTaskDelay(ticks ? ticks : 1U);
+        return;
+    }
+    HAL_Delay(ms);
+}
 
 #define SD_SPI_TIMEOUT_MS  100U
 #define SD_READY_MS        1000U
@@ -14,10 +26,6 @@
 static DSTATUS sd_status = STA_NOINIT;
 static uint8_t block_addressed;
 static uint8_t spi_error;
-
-/* File nay so huu SPI2 trong luc truy cap SD.
- * Khong goi tu nhieu task cung luc.
- */
 
 static uint8_t exchange(uint8_t value)
 {
@@ -73,7 +81,6 @@ static int select_card(void)
     return 1;
 }
 
-/* Goi xong van giu CS o muc Low de doc phan phan hoi con lai. */
 static uint8_t send_command(uint8_t command, uint32_t argument)
 {
     uint8_t crc = 0x01;
@@ -127,7 +134,6 @@ static int receive_block(uint8_t *buffer, uint16_t length)
         return 0;
     }
 
-    /* Truyen 0xFF khi nhan du lieu, moi lan toi da 32 byte. */
     uint8_t dummy[32];
     memset(dummy, 0xFF, sizeof dummy);
 
@@ -146,7 +152,6 @@ static int receive_block(uint8_t *buffer, uint16_t length)
         length -= chunk;
     }
 
-    /* Bo qua hai byte CRC; ban nay chua kiem tra CRC du lieu. */
     (void)exchange(0xFF);
     (void)exchange(0xFF);
 
@@ -178,7 +183,6 @@ static int transmit_block(const uint8_t *buffer)
         return 0;
     }
 
-    /* Cho the ket thuc ghi truoc khi bao thanh cong. */
     return wait_ready(SD_READY_MS);
 }
 
@@ -202,9 +206,6 @@ DSTATUS disk_initialize(BYTE pdrv)
     block_addressed = 0;
     spi_error = 0;
 
-    /* Khoi tao cham: PCLK1 / 256.
-     * MX_SPI2_Init() phai duoc goi truoc ham nay.
-     */
     saved_prescaler = hspi2.Init.BaudRatePrescaler;
     hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
 
@@ -213,9 +214,8 @@ DSTATUS disk_initialize(BYTE pdrv)
     }
 
     HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
-    HAL_Delay(10);
+    sd_delay(10);
 
-    /* It nhat 74 clock khi CS High va MOSI High. */
     for (unsigned int i = 0; i < 10U; ++i) {
         (void)exchange(0xFF);
     }
@@ -226,14 +226,13 @@ DSTATUS disk_initialize(BYTE pdrv)
         if (response == 1 || spi_error) {
             break;
         }
-        HAL_Delay(1);
+        sd_delay(1);
     } while ((uint32_t)(HAL_GetTick() - start) < SD_INIT_MS);
 
     if (spi_error || response != 1) {
         goto finish;
     }
 
-    /* Ban nay yeu cau SD v2. */
     if (send_command(8, 0x1AA) != 1) {
         goto finish;
     }
@@ -261,7 +260,7 @@ DSTATUS disk_initialize(BYTE pdrv)
             goto finish;
         }
 
-        HAL_Delay(1);
+        sd_delay(1);
     } while ((uint32_t)(HAL_GetTick() - start) < SD_INIT_MS);
 
     if (response != 0) {
@@ -423,9 +422,7 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
         break;
 
     default:
-        /* Chua ho tro format the va truy van dung luong.
-         * ffconf.h hien dat _USE_MKFS = 0.
-         */
+
         break;
     }
 
@@ -444,7 +441,6 @@ uint8_t SD_DiskProbe(void)
 
     spi_error = 0;
 
-    /* CMD9 doc truc tiep thanh ghi CSD, khong qua cache FatFs. */
     if (send_command(9, 0) == 0) {
         ok = (uint8_t)receive_block(csd, sizeof csd);
     }
@@ -468,7 +464,6 @@ uint8_t SD_DiskTryReset(void)
     block_addressed = 0;
     spi_error = 0;
 
-    /* Thu reset o toc do khoi tao cham. */
     hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
 
     if (HAL_SPI_Init(&hspi2) != HAL_OK) {
@@ -479,9 +474,8 @@ uint8_t SD_DiskTryReset(void)
     HAL_GPIO_WritePin(
         SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
 
-    HAL_Delay(10);
+    sd_delay(10);
 
-    /* Clock khi CS High, MOSI High. */
     for (unsigned int i = 0; i < 10U; ++i) {
         (void)exchange(0xFF);
     }
@@ -491,10 +485,6 @@ uint8_t SD_DiskTryReset(void)
 
     (void)exchange(0xFF);
 
-    /*
-     * Gui CMD0 truc tiep mot lan.
-     * Khong lap thu trong 3 giay.
-     */
     (void)exchange(0x40);
     (void)exchange(0x00);
     (void)exchange(0x00);

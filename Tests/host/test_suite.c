@@ -1,6 +1,3 @@
-/* Tests production Storage + actual FatFs R0.11 on a RAM FAT16 disk.
- * Only disk hardware, HAL time and GPIO are substituted.
- */
 #include "main.h"
 #include "ff.h"
 #include "diskio.h"
@@ -10,6 +7,11 @@
 #include "attendance.h"
 #include "feedback.h"
 #include "app.h"
+#include "embedded_list.h"
+#ifndef TEST_REAL_EMBEDDED_LIST
+Storage_Status_t EmbeddedList_Sync(Student_t *scratch, uint16_t capacity)
+{ (void)scratch; (void)capacity; return STORAGE_OK; }
+#endif
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -215,17 +217,17 @@ static void test_log(void)
 
 static void test_manager_and_app(void)
 {
-    reset_disk(); seed(); App_Init(); CHECK(StorageManager_IsReady());
+    reset_disk(); seed(); App_Init(); App_Process(); CHECK(StorageManager_IsReady());
     uint16_t n; const Student_t *list=StorageManager_GetStudents(&n);
     CHECK(list && n==3);
     CardEvent_t card={.uid={0,0x11,0x22,0x33},.uid_len=4,.uptime_ms=88};
     DisplayEvent_t display;
     CHECK(App_SubmitCard(&card)==ATTENDANCE_ACCEPTED);
+    CHECK(App_SubmitCard(&card)==ATTENDANCE_BUSY);
     CHECK(App_TakeDisplayEvent(&display) && display.status==APP_CARD_ACCEPTED);
     CHECK(!strcmp(display.student_id,"SV001"));
     CHECK(!App_TakeDisplayEvent(&display));
     CASE("public card input publishes one successful display event");
-    CHECK(App_SubmitCard(&card)==ATTENDANCE_BUSY);
     feedback_done();
     unsigned previous_writes=write_calls;
     for (unsigned i=0;i<20;++i) {
@@ -284,7 +286,7 @@ static void test_manager_and_app(void)
     CASE("invalid replacement CSV never becomes active list");
     seed(); tick+=1100; StorageManager_Process(); CHECK(StorageManager_IsReady());
     CASE("corrected CSV recovers without MCU reset");
-    /* Boundary: subtraction of HAL ticks must survive uint32 wrap. */
+
     Attendance_Init(); CHECK(Attendance_ProcessCard(&card,&display)==ATTENDANCE_ACCEPTED);
     uint32_t time=UINT32_MAX-300U;
     for (unsigned i=0;i<8;++i) { Attendance_NotifyNoCard(time); time+=100; }

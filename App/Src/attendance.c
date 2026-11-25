@@ -1,5 +1,6 @@
 #include "attendance.h"
 #include "storage_manager.h"
+#include "card_cooldown.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -8,6 +9,7 @@
 #define ABSENCE_MAX_GAP_MS 250U
 
 static uint8_t latched;
+static uint32_t last_observed_ms;
 static uint8_t last_uid[10];
 static uint8_t last_uid_len;
 static uint8_t absence_started;
@@ -34,14 +36,24 @@ void Attendance_NotifyNoCard(uint32_t now_ms)
     }
 }
 
-void Attendance_NotifyReaderError(void)
+void Attendance_NotifyCardPresent(void)
 {
     absence_started = 0;
 }
 
+void Attendance_NotifyReaderError(void)
+{
+    Attendance_NotifyCardPresent();
+}
+
 AttendanceResult_t Attendance_ProcessCard(
-    const CardEvent_t *card,
-    DisplayEvent_t *display)
+    const CardEvent_t *card, DisplayEvent_t *display)
+{
+    return Attendance_ProcessCardAt(card, display, card ? card->uptime_ms : 0U);
+}
+
+AttendanceResult_t Attendance_ProcessCardAt(
+    const CardEvent_t *card, DisplayEvent_t *display, uint32_t observed_ms)
 {
     if (display == NULL) {
         return ATTENDANCE_INVALID_ARGUMENT;
@@ -59,15 +71,16 @@ AttendanceResult_t Attendance_ProcessCard(
 
     absence_started = 0;
     if (latched && last_uid_len == card->uid_len &&
-        memcmp(last_uid, card->uid, card->uid_len) == 0) {
+        memcmp(last_uid, card->uid, card->uid_len) == 0 &&
+        (uint32_t)(observed_ms - last_observed_ms) < RFID_CARD_COOLDOWN_MS) {
         display->status = APP_READY;
         return ATTENDANCE_DUPLICATE;
     }
 
-    /* Chan lap ca khi SD loi: khong retry mot luot ghi khong chac chan. */
     memcpy(last_uid, card->uid, card->uid_len);
     last_uid_len = card->uid_len;
     latched = 1;
+    last_observed_ms = observed_ms;
 
     uint16_t count = 0;
     const Student_t *students =
@@ -128,7 +141,6 @@ AttendanceResult_t Attendance_ProcessCard(
         return ATTENDANCE_STORAGE_FAILED;
     }
 
-    /* Chi bao thanh cong sau khi ghi log thanh cong. */
     display->status = APP_CARD_ACCEPTED;
     return ATTENDANCE_ACCEPTED;
 }

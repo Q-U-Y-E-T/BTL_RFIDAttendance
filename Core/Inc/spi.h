@@ -17,7 +17,7 @@
   ******************************************************************************
   */
 /* USER CODE END Header */
-/* Define to prevent recursive inclusion -------------------------------------*/
+
 #ifndef __SPI_H__
 #define __SPI_H__
 
@@ -25,7 +25,6 @@
 extern "C" {
 #endif
 
-/* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
 /* USER CODE BEGIN Includes */
@@ -51,5 +50,4 @@ void MX_SPI2_Init(void);
 }
 #endif
 
-#endif /* __SPI_H__ */
-
+#endif

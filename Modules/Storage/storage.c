@@ -7,7 +7,6 @@
 static FATFS storage_fs;
 static uint8_t storage_ready;
 
-/* Chuyen loi FatFs sang loi giao dien Storage. */
 static Storage_Status_t map_error(FRESULT result)
 {
     switch (result) {
@@ -41,14 +40,6 @@ Storage_Status_t Storage_Init(void)
     return STORAGE_OK;
 }
 
-/*
- * Doc mot dong, chap nhan LF hoac CRLF.
- * Ket qua:
- *   1: doc duoc mot dong
- *   0: het file
- *  -1: dong qua dai hoac co byte NUL
- *  -2: loi doc SD
- */
 static int read_line(FIL *file, char *line, size_t capacity)
 {
     size_t used = 0;
@@ -103,7 +94,6 @@ static int hex_value(char ch)
     return -1;
 }
 
-/* Chi nhan ASCII in duoc; ten cho phep dau cach. */
 static int valid_text(const char *text, int allow_space)
 {
     int has_nonspace = 0;
@@ -150,7 +140,6 @@ static int parse_student(char *line, Student_t *student)
     size_t id_chars = strlen(id_text);
     size_t name_chars = strlen(name_text);
 
-    /* UID RFID: 4, 7 hoac 10 byte. */
     if (uid_chars != 8U &&
         uid_chars != 14U &&
         uid_chars != 20U) {
@@ -184,7 +173,8 @@ static int parse_student(char *line, Student_t *student)
     return 1;
 }
 
-Storage_Status_t Storage_LoadStudents(
+Storage_Status_t Storage_LoadStudentsFile(
+    const char *path,
     Student_t *students,
     uint16_t capacity,
     uint16_t *count)
@@ -198,7 +188,7 @@ Storage_Status_t Storage_LoadStudents(
         *count = 0;
     }
 
-    if (students == NULL || count == NULL ||
+    if (path == NULL || students == NULL || count == NULL ||
         capacity == 0 || capacity > STORAGE_MAX_STUDENTS) {
         return STORAGE_INVALID_ARGUMENT;
     }
@@ -207,7 +197,7 @@ Storage_Status_t Storage_LoadStudents(
         return STORAGE_NOT_READY;
     }
 
-    FRESULT result = f_open(&file, "0:/DanhSach.csv", FA_READ);
+    FRESULT result = f_open(&file, path, FA_READ);
     if (result != FR_OK) {
         return map_error(result);
     }
@@ -244,7 +234,6 @@ Storage_Status_t Storage_LoadStudents(
             break;
         }
 
-        /* UID phai duy nhat trong danh sach. */
         for (uint16_t i = 0; i < loaded; ++i) {
             if (students[i].uid_len == candidate.uid_len &&
                 memcmp(students[i].uid, candidate.uid,
@@ -317,7 +306,6 @@ Storage_Status_t Storage_AppendAttendance(
         return STORAGE_INVALID_ARGUMENT;
     }
 
-    /* Kiem tra chuoi ket thuc trong dung kich thuoc mang. */
     if (memchr(student->student_id, '\0',
                sizeof student->student_id) == NULL ||
         !valid_text(student->student_id, 0)) {
@@ -346,10 +334,6 @@ Storage_Status_t Storage_AppendAttendance(
         return STORAGE_INVALID_ARGUMENT;
     }
 
-    /*
-     * OPEN_ALWAYS: mo file cu hoac tao file moi.
-     * Khong dung CREATE_ALWAYS vi se xoa lich su cu.
-     */
     FRESULT result = f_open(
         &file, "0:/history.csv",
         FA_READ | FA_WRITE | FA_OPEN_ALWAYS
@@ -366,7 +350,7 @@ Storage_Status_t Storage_AppendAttendance(
             status = write_text(&file, "\r\n");
         }
     } else {
-        /* Kiem tra tieu de file cu truoc khi ghi them. */
+
         int line_result = read_line(
             &file, existing_header, sizeof existing_header);
 
@@ -377,11 +361,6 @@ Storage_Status_t Storage_AppendAttendance(
             status = STORAGE_FORMAT_ERROR;
         }
 
-        /*
-         * File cu phai ket thuc bang newline.
-         * Neu lan ghi truoc bi gian doan, bao loi de xu ly;
-         * khong noi dong moi vao mot dong dang do.
-         */
         if (status == STORAGE_OK) {
             result = f_lseek(&file, f_size(&file) - 1U);
 
@@ -422,4 +401,10 @@ Storage_Status_t Storage_AppendAttendance(
     }
 
     return status;
+}
+
+Storage_Status_t Storage_LoadStudents(
+    Student_t *students, uint16_t capacity, uint16_t *count)
+{
+    return Storage_LoadStudentsFile("0:/DanhSach.csv", students, capacity, count);
 }

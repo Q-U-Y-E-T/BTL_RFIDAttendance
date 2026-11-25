@@ -11,14 +11,13 @@ static uint32_t last_change;
 
 static void set_outputs(uint8_t on)
 {
-    /* LED ngoai PA8 gia lap coi: High = bat. */
+
     HAL_GPIO_WritePin(
         BUZZER_GPIO_Port,
         BUZZER_Pin,
         on ? GPIO_PIN_SET : GPIO_PIN_RESET
     );
 
-    /* LED PC13 tren Blue Pill: Low = sang. */
     HAL_GPIO_WritePin(
         LED_GPIO_Port,
         LED_Pin,
@@ -57,6 +56,7 @@ uint8_t Feedback_Start(AppStatus_t status)
     case APP_CARD_UNKNOWN:
     case APP_STORAGE_ERROR:
     case APP_LIST_ERROR:
+    case APP_READER_ERROR:
         pulses = 3;
         break;
 

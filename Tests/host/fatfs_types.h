@@ -1,6 +1,3 @@
-/* Host-only: Linux LP64 long is 64-bit; FatFs R0.11 requires DWORD=32-bit.
- * Force-include this adapter for host tests; vendor integer.h stays unchanged.
- */
 #ifndef _FF_INTEGER
 #define _FF_INTEGER
 #include <stdint.h>
