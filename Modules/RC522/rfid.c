@@ -1,11 +1,9 @@
-/* RC522 driver adapted from the supplied demo for the shared STM32 HAL project. */
 #include "rfid.h"
 #include "rfid_delay.h"
 #include "main.h"
 #include "spi.h"
 #include <string.h>
 
-/* Temporary diagnostics consumed by the UART test main.c. */
 const char * volatile rfid_debug_step = "NOT_STARTED";
 volatile uint32_t rfid_debug_hal_status;
 volatile uint32_t rfid_debug_irq;
@@ -115,7 +113,7 @@ static RFID_Status_t transceive(const uint8_t *tx, unsigned length,
             return RFID_ERROR;
         }
         rfid_debug_irq = irq;
-        /* Received data takes priority. Timer expiry precedes an idle-only event. */
+
         if ((irq & 0x20U) != 0U) {
             break;
         }
@@ -143,7 +141,7 @@ static RFID_Status_t transceive(const uint8_t *tx, unsigned length,
     }
     rfid_debug_error = errors;
     rfid_debug_step = "RX_ERROR";
-    /* Reject collision, buffer overflow, parity and protocol errors. */
+
     if ((errors & 0x1BU) != 0U) {
         return RFID_ERROR;
     }
@@ -226,7 +224,7 @@ RFID_Status_t RFID_Init(void)
 
 RFID_Status_t RFID_ReadCard(CardEvent_t *card)
 {
-    uint8_t request = 0x52U; /* WUPA also wakes a card halted by the previous read. */
+    uint8_t request = 0x52U;
     uint8_t rx[10], frame[9], crc[2], part[5];
     unsigned received, position = 0U;
     RFID_Status_t status;
@@ -293,7 +291,7 @@ RFID_Status_t RFID_ReadCard(CardEvent_t *card)
             frame[0] = 0x50U;
             frame[1] = 0U;
             calculate_crc_a(frame, 2U, frame + 2);
-            /* A correctly halted card sends no response. */
+
             status = transceive(frame, 4U, 0U, rx, sizeof(rx), &received);
             if (status != RFID_NO_CARD) {
                 if (status == RFID_OK) {

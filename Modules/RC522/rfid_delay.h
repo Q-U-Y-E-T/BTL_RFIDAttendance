@@ -3,7 +3,6 @@
 
 #include "main.h"
 
-#ifdef RFID_USE_FREERTOS
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -16,8 +15,5 @@ static inline void RFID_DelayMs(uint32_t milliseconds)
         HAL_Delay(milliseconds);
     }
 }
-#else
-#define RFID_DelayMs HAL_Delay
-#endif
 
 #endif

@@ -11,7 +11,7 @@ out.mkdir(exist_ok=True)
 cc = shlex.split(os.environ.get('HOST_CC', 'gcc'))
 flags = ['-std=c11', '-Wall', '-Wextra', '-g', '-O1',
          '-fsanitize=address,undefined', '-fno-omit-frame-pointer',
-         '-DAPP_ENABLE_DEMO=0', '-include', 'Tests/host/fatfs_types.h',
+         '-include', 'Tests/host/fatfs_types.h',
          '-ITests/host', '-IApp/Inc', '-IModules/Storage',
          '-IMiddlewares/Third_Party/FatFs/src']
 sources = ['Tests/host/test_suite.c', 'Modules/Storage/storage.c',
@@ -20,8 +20,15 @@ sources = ['Tests/host/test_suite.c', 'Modules/Storage/storage.c',
            'Middlewares/Third_Party/FatFs/src/ff.c']
 binary = out / 'test_suite'
 subprocess.run(cc + flags + sources + ['-o', str(binary)], cwd=root, check=True)
-# This suite allocates no heap memory. Disable leak tracing for sandbox/ptrace
-# environments; address and undefined-behavior checks remain enabled.
+
 env = os.environ.copy()
 env.setdefault('ASAN_OPTIONS', 'detect_leaks=0')
 subprocess.run([str(binary)], cwd=root, check=True, env=env)
+
+rtos_flags = flags.copy()
+rtos_flags += ['-ITests/rtos_host', '-IModules/RC522', '-IModules/LCD']
+rtos_sources = [s for s in sources if s != 'Tests/host/test_suite.c']
+rtos_sources += ['Tests/rtos_host/test_runtime.c', 'App/Src/app_input.c', 'App/Src/app_queues.c']
+rtos_binary = out / 'test_runtime'
+subprocess.run(cc + rtos_flags + rtos_sources + ['-o', str(rtos_binary)], cwd=root, check=True)
+subprocess.run([str(rtos_binary)], cwd=root, check=True, env=env)

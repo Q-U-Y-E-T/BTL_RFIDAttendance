@@ -1,34 +1,37 @@
-######################################
-# Project
-######################################
-TARGET = RFIDAttendance
+TARGET := RFIDAttendance
+BUILD_DIR := build-rtos
+DEBUG ?= 1
+OPT ?= -Og
+LIST_FILE ?= Tools/Provision/DanhSach.csv
+GENERATED_LIST := $(BUILD_DIR)/generated/embedded_list_data.h
 
-######################################
-# Build settings
-######################################
-DEBUG = 1
-OPT = -Og
-
-# 0: normal build
-# 1: fake-card demo
-DEMO ?= 0
-
-ifneq ($(DEMO),0)
-ifneq ($(DEMO),1)
-$(error DEMO must be 0 or 1)
+ifneq ($(origin PROVISION),undefined)
+$(error Khong con firmware rieng PROVISION. Sua DanhSach.csv roi chay make)
 endif
+ifneq ($(origin REPLACE_LIST),undefined)
+$(error Khong can REPLACE_LIST. Firmware tu cap nhat va sao luu danh sach)
 endif
 
-ifeq ($(DEMO),1)
-BUILD_DIR = build-demo
-else
-BUILD_DIR = build
+ifneq ($(origin DEMO),undefined)
+$(error DEMO da duoc bo. Ban nay chi chay he thong RTOS: make)
+endif
+ifneq ($(origin RFID_RTOS_TEST),undefined)
+$(error RFID_RTOS_TEST da duoc bo. Ban nay chi chay he thong RTOS: make)
+endif
+ifneq ($(origin RTOS),undefined)
+$(error Khong con lua chon RTOS. Ban nay luon chay FreeRTOS: make)
 endif
 
-######################################
-# Core and HAL sources
-######################################
-C_SOURCES = \
+TOOLCHAIN_PREFIX := $(if $(GCC_PATH),$(GCC_PATH)/,)arm-none-eabi-
+CC := $(TOOLCHAIN_PREFIX)gcc
+OBJCOPY := $(TOOLCHAIN_PREFIX)objcopy
+SIZE := $(TOOLCHAIN_PREFIX)size
+
+HAL := Drivers/STM32F1xx_HAL_Driver
+FREERTOS := Middlewares/Third_Party/FreeRTOS/Source
+FATFS := Middlewares/Third_Party/FatFs/src
+
+C_SOURCES := \
 Core/Src/main.c \
 Core/Src/stm32f1xx_it.c \
 Core/Src/stm32f1xx_hal_msp.c \
@@ -38,217 +41,126 @@ Core/Src/syscalls.c \
 Core/Src/gpio.c \
 Core/Src/spi.c \
 Core/Src/i2c.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio_ex.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_rcc.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_rcc_ex.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_dma.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_cortex.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pwr.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash_ex.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_exti.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_spi.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_i2c.c
-
-######################################
-# FatFs and Storage sources
-######################################
-C_SOURCES += \
-Middlewares/Third_Party/FatFs/src/ff.c \
-Modules/Storage/sd_diskio.c \
-Modules/Storage/storage.c
-
-######################################
-# Application sources
-######################################
-C_SOURCES += \
 App/Src/app.c \
+App/Src/app_input.c \
+App/Src/app_rtos.c \
+App/Src/app_queues.c \
+App/Src/task_rfid_read.c \
 App/Src/storage_manager.c \
+App/Src/attendance.c \
 App/Src/feedback.c \
-App/Src/attendance.c
+Modules/RC522/rfid.c \
+Modules/LCD/lcd.c \
+Modules/Storage/sd_diskio.c \
+Modules/Storage/storage.c \
+$(FATFS)/ff.c \
+$(FREERTOS)/tasks.c \
+$(FREERTOS)/queue.c \
+$(FREERTOS)/list.c \
+$(FREERTOS)/portable/GCC/ARM_CM3/port.c \
+$(FREERTOS)/portable/MemMang/heap_4.c \
+$(HAL)/Src/stm32f1xx_hal.c \
+$(HAL)/Src/stm32f1xx_hal_gpio.c \
+$(HAL)/Src/stm32f1xx_hal_gpio_ex.c \
+$(HAL)/Src/stm32f1xx_hal_rcc.c \
+$(HAL)/Src/stm32f1xx_hal_rcc_ex.c \
+$(HAL)/Src/stm32f1xx_hal_dma.c \
+$(HAL)/Src/stm32f1xx_hal_cortex.c \
+$(HAL)/Src/stm32f1xx_hal_pwr.c \
+$(HAL)/Src/stm32f1xx_hal_flash.c \
+$(HAL)/Src/stm32f1xx_hal_flash_ex.c \
+$(HAL)/Src/stm32f1xx_hal_exti.c \
+$(HAL)/Src/stm32f1xx_hal_spi.c \
+$(HAL)/Src/stm32f1xx_hal_i2c.c
 
-######################################
-# Optional demo
-######################################
-ifeq ($(DEMO),1)
-C_SOURCES += Tests/attendance_demo.c
-endif
-
-######################################
-# Assembly sources
-######################################
-ASM_SOURCES = \
-startup_stm32f103xb.s
-
-ASMM_SOURCES =
-
-######################################
-# Toolchain
-######################################
-PREFIX = arm-none-eabi-
-
-ifdef GCC_PATH
-CC = $(GCC_PATH)/$(PREFIX)gcc
-AS = $(GCC_PATH)/$(PREFIX)gcc -x assembler-with-cpp
-CP = $(GCC_PATH)/$(PREFIX)objcopy
-SZ = $(GCC_PATH)/$(PREFIX)size
-else
-CC = $(PREFIX)gcc
-AS = $(PREFIX)gcc -x assembler-with-cpp
-CP = $(PREFIX)objcopy
-SZ = $(PREFIX)size
-endif
-
-HEX = $(CP) -O ihex
-BIN = $(CP) -O binary -S
-
-######################################
-# MCU
-######################################
-CPU = -mcpu=cortex-m3
-FPU =
-FLOAT-ABI =
-MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
-
-######################################
-# Preprocessor definitions
-######################################
-AS_DEFS =
-
-C_DEFS = \
--DUSE_HAL_DRIVER \
--DSTM32F103xB \
--DAPP_ENABLE_DEMO=$(DEMO)
-
-######################################
-# Header paths
-######################################
-AS_INCLUDES =
-
-C_INCLUDES = \
+ASM_SOURCES := startup_stm32f103xb.s
+MCU := -mcpu=cortex-m3 -mthumb
+C_DEFS := -DUSE_HAL_DRIVER -DSTM32F103xB
+C_INCLUDES := \
 -ICore/Inc \
--IDrivers/STM32F1xx_HAL_Driver/Inc/Legacy \
--IDrivers/STM32F1xx_HAL_Driver/Inc \
--IDrivers/CMSIS/Device/ST/STM32F1xx/Include \
--IDrivers/CMSIS/Include \
 -IApp/Inc \
 -IModules/RC522 \
 -IModules/LCD \
 -IModules/Storage \
--IMiddlewares/Third_Party/FatFs/src
+-I$(FATFS) \
+-I$(HAL)/Inc \
+-I$(HAL)/Inc/Legacy \
+-IDrivers/CMSIS/Device/ST/STM32F1xx/Include \
+-IDrivers/CMSIS/Include \
+-I$(FREERTOS)/include \
+-I$(FREERTOS)/portable/GCC/ARM_CM3
 
-ifeq ($(DEMO),1)
-C_INCLUDES += -ITests
-endif
+C_SOURCES += App/Src/embedded_list.c Modules/Storage/student_list_update.c
+C_INCLUDES += -I$(BUILD_DIR)/generated
 
-######################################
-# Compiler flags
-######################################
-# RC522 driver and optional standalone FreeRTOS test
-C_SOURCES += Modules/RC522/rfid.c
-include App/rfid_task_queue.mk
-
-ifeq ($(RFID_RTOS_TEST),1)
-ifneq ($(DEMO),0)
-$(error Khong dung DEMO=1 cung RFID_RTOS_TEST=1)
-endif
-endif
-
-# LCD 16x2 I2C
-C_SOURCES += Modules/LCD/lcd.c
-
-ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) \
+CFLAGS := $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -std=gnu11 \
 -Wall -fdata-sections -ffunction-sections
-
-CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
--Wall -fdata-sections -ffunction-sections
-
+ASFLAGS := $(MCU) $(C_DEFS) $(C_INCLUDES)
 ifeq ($(DEBUG),1)
 CFLAGS += -g -gdwarf-2
 ASFLAGS += -g -gdwarf-2
 endif
 
-CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
+LDSCRIPT := STM32F103xx_FLASH.ld
+LDFLAGS := $(MCU) -specs=nano.specs -T$(LDSCRIPT) \
+-Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
+LIBS := -lc -lm -lnosys
 
-######################################
-# Linker
-######################################
-LDSCRIPT = STM32F103xx_FLASH.ld
+OBJECTS := $(addprefix $(BUILD_DIR)/,$(C_SOURCES:.c=.o))
+OBJECTS += $(addprefix $(BUILD_DIR)/,$(ASM_SOURCES:.s=.o))
 
-LIBS = -lc -lm -lnosys
-LIBDIR =
-
-LDFLAGS = $(MCU) -specs=nano.specs \
--T$(LDSCRIPT) $(LIBDIR) $(LIBS) \
--Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref \
--Wl,--gc-sections
-
-######################################
-# Default target
-######################################
 .DEFAULT_GOAL := all
-.PHONY: all clean clean-all test-host
+.PHONY: all clean clean-all test-host test-list-update check-source check test-make-data force-list
+all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
-all: $(BUILD_DIR)/$(TARGET).elf \
-     $(BUILD_DIR)/$(TARGET).hex \
-     $(BUILD_DIR)/$(TARGET).bin
+force-list:
 
-######################################
-# Object files
-######################################
-OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
-vpath %.c $(sort $(dir $(C_SOURCES)))
+$(GENERATED_LIST): $(LIST_FILE) Tools/Provision/generate_list.py Makefile force-list
+	mkdir -p $(@D)
+	python3 Tools/Provision/generate_list.py "$(LIST_FILE)" "$@"
 
-OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.s=.o)))
-vpath %.s $(sort $(dir $(ASM_SOURCES)))
+$(OBJECTS): $(GENERATED_LIST)
 
-OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASMM_SOURCES:.S=.o)))
-vpath %.S $(sort $(dir $(ASMM_SOURCES)))
+$(BUILD_DIR)/%.o: %.c Makefile
+	mkdir -p $(@D)
+	$(CC) -c $(CFLAGS) -MMD -MP -MF $(@:.o=.d) $< -o $@
 
-######################################
-# Compile
-######################################
-$(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR)
-	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
+$(BUILD_DIR)/%.o: %.s Makefile
+	mkdir -p $(@D)
+	$(CC) -x assembler-with-cpp -c $(ASFLAGS) $< -o $@
 
-$(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
-	$(AS) -c $(ASFLAGS) $(C_DEFS) $(C_INCLUDES) $< -o $@
-
-$(BUILD_DIR)/%.o: %.S Makefile | $(BUILD_DIR)
-	$(AS) -c $(ASFLAGS) $(C_DEFS) $(C_INCLUDES) $< -o $@
-
-######################################
-# Link and generate firmware
-######################################
 $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile $(LDSCRIPT)
-	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
-	$(SZ) $@
+	$(CC) $(OBJECTS) $(LDFLAGS) $(LIBS) -o $@
+	$(SIZE) $@
 
-$(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
-	$(HEX) $< $@
+$(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf
+	$(OBJCOPY) -O ihex $< $@
 
-$(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
-	$(BIN) $< $@
+$(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
+	$(OBJCOPY) -O binary -S $< $@
 
-$(BUILD_DIR):
-	mkdir -p $@
-
-######################################
-# Clean
-######################################
 clean:
 	$(RM) -r $(BUILD_DIR)
 
 clean-all:
-	$(RM) -r build build-demo build-host
+	$(RM) -r build-rtos build-host build build-demo build_rfid_rtos build-provision build-provision-replace
 
-# Desktop tests: no ARM toolchain or STM32 required.
 test-host:
 	python3 Tests/run_host_tests.py
 
-######################################
-# Dependencies
-######################################
--include $(wildcard $(BUILD_DIR)/*.d)
+check-source:
+	python3 Tests/check_source.py
+
+test-list-update:
+	python3 Tests/test_list_update.py
+
+test-make-data:
+	python3 Tests/test_make_data.py
+
+check: test-host check-source test-list-update test-make-data
+
+-include $(OBJECTS:.o=.d)
+
+.PHONY: flash
+flash: all
+	st-flash write $(BUILD_DIR)/$(TARGET).bin 0x08000000
