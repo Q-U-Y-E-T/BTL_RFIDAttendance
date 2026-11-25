@@ -1,4 +1,3 @@
-/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.h
@@ -16,7 +15,6 @@
   *
   ******************************************************************************
   */
-/* USER CODE END Header */
 
 #ifndef __MAIN_H
 #define __MAIN_H
@@ -27,27 +25,7 @@ extern "C" {
 
 #include "stm32f1xx_hal.h"
 
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* USER CODE BEGIN ET */
-
-/* USER CODE END ET */
-
-/* USER CODE BEGIN EC */
-
-/* USER CODE END EC */
-
-/* USER CODE BEGIN EM */
-
-/* USER CODE END EM */
-
 void Error_Handler(void);
-
-/* USER CODE BEGIN EFP */
-
-/* USER CODE END EFP */
 
 #define LED_Pin GPIO_PIN_13
 #define LED_GPIO_Port GPIOC
@@ -59,10 +37,6 @@ void Error_Handler(void);
 #define SD_CS_GPIO_Port GPIOB
 #define BUZZER_Pin GPIO_PIN_8
 #define BUZZER_GPIO_Port GPIOA
-
-/* USER CODE BEGIN Private defines */
-
-/* USER CODE END Private defines */
 
 #ifdef __cplusplus
 }

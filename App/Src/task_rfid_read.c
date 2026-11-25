@@ -8,7 +8,7 @@ static TaskHandle_t rfid_task_handle;
 
 typedef struct {
     uint8_t uid[10];
-    uint8_t uid_len; 
+    uint8_t uid_len;
     TickType_t last_sent;
 } RFID_CooldownEntry_t;
 
@@ -19,7 +19,6 @@ enum {
     COOLDOWN_FULL = -2,
     COOLDOWN_INVALID_UID = -3
 };
-
 
 static int Cooldown_FindSlot(const CardEvent_t *card, TickType_t now,
                              TickType_t interval)
